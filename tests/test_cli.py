@@ -25,6 +25,15 @@ class ConsoleTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         return result.stdout
 
+    def test_each_mode_returns_to_menu_until_exit(self):
+        inputs = MANUAL + "2\n3\n5\n0\n2\n"
+        output = self.run_app(ROOT / "main.py", inputs, ROOT)
+
+        self.assertEqual(output.count("모드 선택: "), 4)
+        self.assertIn("판정: B", output)
+        self.assertEqual(output.count("결과 요약"), 1)
+        self.assertIn("Cross 패턴 (5×5)", output)
+
     def test_json_from_another_working_directory(self):
         with tempfile.TemporaryDirectory() as directory:
             output = self.run_app(ROOT / "main.py", "2\n", directory)

@@ -130,7 +130,7 @@ def _benchmark(patterns: Dict[str, Pattern], filters: FilterGroups) -> None:
 
 
 def main(path: Path = DATA_PATH) -> bool:
-    """Analyze one JSON file and return False if a new menu choice is needed."""
+    """Analyze one JSON file and return whether the analysis completed."""
     try:
         document = _read_document(path)
     except (OSError, ValueError, RecursionError) as error:
