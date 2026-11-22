@@ -65,9 +65,9 @@ class JsonModeTests(unittest.TestCase):
         self.assertIn("실패: 8개", output)
         self.assertEqual(output.count("Cross 점수"), 4)
         self.assertEqual(output.count("X 점수"), 4)
-        self.assertRegex(output, r"(?m)^3×3\s+\S+\s+9\s+60\s+입력$")
-        self.assertRegex(output, r"(?m)^2×2\s+\S+\s+4\s+20\s+입력$")
-        self.assertRegex(output, r"(?m)^5×5\s+\S+\s+25\s+20\s+대체$")
+        self.assertRegex(output, r"(?m)^3×3\t[^\n]+\t9\t60\t입력$")
+        self.assertRegex(output, r"(?m)^2×2\t[^\n]+\t4\t20\t입력$")
+        self.assertRegex(output, r"(?m)^5×5\t[^\n]+\t25\t20\t대체$")
         failures = output.split("실패: 8개", 1)[1]
         for case_id in list(doc["patterns"])[1:-1]:
             self.assertEqual(failures.count(case_id), 1)

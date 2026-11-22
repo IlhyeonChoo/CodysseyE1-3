@@ -65,3 +65,25 @@ class ConsoleTests(unittest.TestCase):
         )
         self.assertEqual(float(row[1]), 3.0)
         self.assertEqual(row[2:], ["9", "30", "대체"])
+
+    def test_layout_table_compares_weighted_times_for_the_same_calls(self):
+        from src.reporting import print_benchmark_table
+
+        results = [
+            dict(n=3, repeats=10, average_ms=1.0, flat_average_ms=0.5),
+            dict(n=3, repeats=20, average_ms=4.0, flat_average_ms=2.0),
+        ]
+        stream = io.StringIO()
+        with redirect_stdout(stream):
+            print_benchmark_table(results, fallback_sizes={3})
+        row = stream.getvalue().splitlines()[-1].split("\t")
+        self.assertEqual(row[0], "3×3")
+        self.assertEqual([float(value) for value in row[1:4]], [3.0, 1.5, 2.0])
+        self.assertEqual(row[4:], ["9", "30", "대체"])
+
+    def test_generator_is_reachable_from_the_main_menu(self):
+        output = self.run_app(ROOT / "main.py", "3\n5\n", ROOT)
+        self.assertIn("Cross", output)
+        self.assertIn("X", output)
+        self.assertIn("1D 평균(ms)", output)
+        self.assertRegex(output, r"(?m)^5×5\t.*\t25\t40\t생성$")

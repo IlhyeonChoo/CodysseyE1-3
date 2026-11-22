@@ -4,20 +4,29 @@ from __future__ import annotations
 
 from typing import List
 
-from src.calculator import benchmark_mac, evaluate_pattern
+from src.calculator import benchmark_mac_layouts, evaluate_pattern
 from src.models import Filter, Pattern
+from src.patterns import generate_patterns
 from src.reporting import print_benchmark_table
 from src.validation import validate_matrix
 
 
-def _read_matrix(name: str) -> List[List[float]]:
+def _read_matrix(name: str, allow_generated: bool = False) -> List[List[float]]:
     """Read one complete matrix, retrying only its block after invalid input."""
     while True:
         print(f"{name} (3줄 입력, 각 줄에 숫자 3개)")
+        if allow_generated:
+            print("첫 줄에 Cross 또는 X를 입력하면 해당 3×3 패턴을 자동 생성합니다.")
         matrix: List[List[float]] = []
         try:
             for row_index in range(3):
-                tokens = input(f"{row_index + 1}/3> ").split()
+                line = input(f"{row_index + 1}/3> ")
+                command = line.strip().casefold()
+                if allow_generated and row_index == 0 and command in ("cross", "x"):
+                    cross, x = generate_patterns(3)
+                    matrix = cross if command == "cross" else x
+                    break
+                tokens = line.split()
                 if len(tokens) != 3:
                     raise ValueError("빈 줄 없이 각 줄에 숫자 3개가 필요합니다.")
                 matrix.append([float(token) for token in tokens])
@@ -40,7 +49,7 @@ def main() -> None:
     print("필터 A/B 저장 완료")
 
     while True:
-        pattern = Pattern(3, _read_matrix("패턴"))
+        pattern = Pattern(3, _read_matrix("패턴", allow_generated=True))
         try:
             evaluate_pattern(pattern, filters)
         except ValueError as error:
@@ -53,6 +62,6 @@ def main() -> None:
         if prediction == "UNDECIDED":
             prediction = "판정 불가"
         print(f"판정: {prediction}")
-        results = [benchmark_mac(pattern, item) for item in filters]
+        results = [benchmark_mac_layouts(pattern, item) for item in filters]
         print_benchmark_table(results)
         return

@@ -2,7 +2,7 @@
 
 import math
 import time
-from typing import Dict, Mapping, Sequence
+from typing import Callable, Dict, Mapping, Sequence
 
 from .models import Filter, Pattern
 from .validation import validate_pair
@@ -15,6 +15,19 @@ def mac(pattern: Pattern, filter_: Filter) -> float:
         for row in range(pattern.n):
             for column in range(pattern.n):
                 total += pattern.array[row][column] * filter_.array[row][column]
+    except OverflowError:
+        raise ValueError("MAC 곱셈 또는 누적 결과가 유한한 수의 범위를 벗어났습니다.") from None
+    if not math.isfinite(total):
+        raise ValueError("MAC 곱셈 또는 누적 결과가 유한한 수의 범위를 벗어났습니다.")
+    return total
+
+
+def _mac_flat(values: Sequence[float], weights: Sequence[float]) -> float:
+    """Accumulate already validated row-major arrays with N squared values."""
+    total = 0.0
+    try:
+        for index in range(len(values)):
+            total += values[index] * weights[index]
     except OverflowError:
         raise ValueError("MAC 곱셈 또는 누적 결과가 유한한 수의 범위를 벗어났습니다.") from None
     if not math.isfinite(total):
@@ -75,14 +88,43 @@ def benchmark_mac(pattern: Pattern, filter_: Filter, repeats: int = 10) -> Dict[
     if isinstance(repeats, bool) or not isinstance(repeats, int) or repeats < 10:
         raise ValueError("반복 횟수는 10 이상의 정수여야 합니다.")
     validate_pair(pattern, filter_)
-    start = time.perf_counter()
-    for _ in range(repeats):
-        mac(pattern, filter_)
-    elapsed = time.perf_counter() - start
+    return _matrix_benchmark_result(pattern, filter_, repeats)
+
+
+def _matrix_benchmark_result(
+    pattern: Pattern, filter_: Filter, repeats: int
+) -> Dict[str, object]:
+    """Measure a validated matrix pair and build its baseline result."""
     return {
         "n": pattern.n,
         "filter_label": filter_.label,
         "repeats": repeats,
-        "average_ms": elapsed * 1000.0 / repeats,
+        "average_ms": _average_mac_ms(mac, pattern, filter_, repeats),
         "op_count": pattern.n ** 2,
     }
+
+
+def _average_mac_ms(
+    operation: Callable[..., float], left: object, right: object, repeats: int
+) -> float:
+    """Use the same two-argument call loop for either storage layout."""
+    start = time.perf_counter()
+    for _ in range(repeats):
+        operation(left, right)
+    return (time.perf_counter() - start) * 1000.0 / repeats
+
+
+def benchmark_mac_layouts(
+    pattern: Pattern, filter_: Filter, repeats: int = 10
+) -> Dict[str, object]:
+    """Compare equal row-major scores and time matrix and flat MAC calls."""
+    if isinstance(repeats, bool) or not isinstance(repeats, int) or repeats < 10:
+        raise ValueError("반복 횟수는 10 이상의 정수여야 합니다.")
+    validate_pair(pattern, filter_)
+    values = [value for row in pattern.array for value in row]
+    weights = [value for row in filter_.array for value in row]
+    if mac(pattern, filter_) != _mac_flat(values, weights):
+        raise ValueError("2차원과 1차원 MAC 점수가 일치하지 않습니다.")
+    result = _matrix_benchmark_result(pattern, filter_, repeats)
+    result["flat_average_ms"] = _average_mac_ms(_mac_flat, values, weights, repeats)
+    return result

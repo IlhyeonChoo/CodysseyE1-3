@@ -5,8 +5,9 @@ import re
 from pathlib import Path
 from typing import Dict, Tuple
 
-from .calculator import benchmark_mac, evaluate_pattern
+from .calculator import benchmark_mac_layouts, evaluate_pattern
 from .models import Filter, Pattern
+from .patterns import generate_patterns
 from .reporting import print_benchmark_table
 from .validation import normalize_expected, normalize_filter_label, parse_pattern_key
 
@@ -107,9 +108,7 @@ def _analyze_cases(
 
 
 def _fallback_pair(n: int) -> Tuple[Pattern, Tuple[Filter, Filter]]:
-    middle = n // 2
-    cross = [[int(r == middle or c == middle) for c in range(n)] for r in range(n)]
-    x = [[int(r == c or r + c == n - 1) for c in range(n)] for r in range(n)]
+    cross, x = generate_patterns(n)
     return Pattern(n, cross), (Filter(n, cross, "Cross"), Filter(n, x, "X"))
 
 
@@ -120,13 +119,13 @@ def _benchmark(patterns: Dict[str, Pattern], filters: FilterGroups) -> None:
         if pattern.prediction is None:
             continue
         for filter_ in filters[pattern.n].values():
-            results.append(benchmark_mac(pattern, filter_))
+            results.append(benchmark_mac_layouts(pattern, filter_))
         measured_sizes.add(pattern.n)
     fallback_sizes = set(BENCHMARK_SIZES) - measured_sizes
     for n in sorted(fallback_sizes):
         pattern, pair = _fallback_pair(n)
         for filter_ in pair:
-            results.append(benchmark_mac(pattern, filter_))
+            results.append(benchmark_mac_layouts(pattern, filter_))
     print_benchmark_table(results, fallback_sizes)
 
 
